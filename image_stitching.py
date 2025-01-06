@@ -93,88 +93,86 @@ def stitch_images():
             result_label.config(image=display_img)
             result_label.image = display_img
 
-        for i in range(1, len(images)):
-            src_img = result_img
-            tar_img = images[i]
+        src_img = result_img
+        tar_img = images[1]
 
-            src_gray = cv2.cvtColor(src_img, cv2.COLOR_RGB2GRAY)
-            tar_gray = cv2.cvtColor(tar_img, cv2.COLOR_RGB2GRAY)
+        src_gray = cv2.cvtColor(src_img, cv2.COLOR_RGB2GRAY)
+        tar_gray = cv2.cvtColor(tar_img, cv2.COLOR_RGB2GRAY)
 
-            SIFT_detector = cv2.SIFT_create()
-            kp1, des1 = SIFT_detector.detectAndCompute(src_gray, None)
-            kp2, des2 = SIFT_detector.detectAndCompute(tar_gray, None)
+        SIFT_detector = cv2.SIFT_create()
+        kp1, des1 = SIFT_detector.detectAndCompute(src_gray, None)
+        kp2, des2 = SIFT_detector.detectAndCompute(tar_gray, None)
 
-            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
-            rawMatches = bf.knnMatch(des1, des2, k=2)
+        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
+        rawMatches = bf.knnMatch(des1, des2, k=2)
 
-            matches = []
-            ratio = 0.75
-            for m, n in rawMatches:
-                if m.distance < n.distance * ratio:
-                    matches.append(m)
+        matches = []
+        ratio = 0.75
+        for m, n in rawMatches:
+            if m.distance < n.distance * ratio:
+                matches.append(m)
 
-            kp1 = np.float32([kp.pt for kp in kp1])
-            kp2 = np.float32([kp.pt for kp in kp2])
+        kp1 = np.float32([kp.pt for kp in kp1])
+        kp2 = np.float32([kp.pt for kp in kp2])
 
-            pts1 = np.float32([kp1[m.queryIdx] for m in matches])
-            pts2 = np.float32([kp2[m.trainIdx] for m in matches])
+        pts1 = np.float32([kp1[m.queryIdx] for m in matches])
+        pts2 = np.float32([kp2[m.trainIdx] for m in matches])
 
-            H, status = cv2.findHomography(pts1, pts2, cv2.RANSAC)
-            print(f"Homography Matrix for step {i}:\n{H}")
+        H, status = cv2.findHomography(pts1, pts2, cv2.RANSAC)
 
-            h1, w1 = src_img.shape[:2]
-            h2, w2 = tar_img.shape[:2]
+        h1, w1 = src_img.shape[:2]
+        h2, w2 = tar_img.shape[:2]
 
-            # Create larger canvas to handle both vertical and horizontal stitching
-            stitched_width = max(w1, w2) * 2  # Double the max width
-            stitched_height = max(h1, h2)
+        # Create larger canvas to handle both vertical and horizontal stitching
+        stitched_width = max(w1, w2) * 2  # Double the max width
+        stitched_height = max(h1, h2)
 
-            # Warp both images to the canvas
-            stitched_images = [
-                cv2.warpPerspective(src_img, H, (stitched_width, stitched_height)),
-                cv2.warpPerspective(
-                    tar_img, np.linalg.inv(H), (stitched_width, stitched_height)
-                ),
-            ]
+        # Warp both images to the canvas
+        stitched_images = [
+            cv2.warpPerspective(src_img, H, (stitched_width, stitched_height)),
+            cv2.warpPerspective(
+                tar_img, np.linalg.inv(H), (stitched_width, stitched_height)
+            ),
+        ]
 
-            for idx, stitched in enumerate(stitched_images):
-                if idx == 0:
-                    stitched[0:h2, 0:w2] = (
-                        tar_img  # Place the second image onto the canvas
-                    )
-                else:
-                    stitched[0:h1, 0:w1] = (
-                        src_img  # Place the first image onto the canvas
-                    )
+        for idx, stitched in enumerate(stitched_images):
+            if idx == 0:
+                stitched[0:h2, 0:w2] = (
+                    tar_img  # Place the second image onto the canvas
+                )
+            else:
+                stitched[0:h1, 0:w1] = (
+                    src_img  # Place the first image onto the canvas
+                )
 
-            first_stitched = stitched_images[0][100:-50, :]
-            second_stitched = stitched_images[1][100:-50, :]
+        first_stitched = stitched_images[0][100:-50, :]
+        second_stitched = stitched_images[1][100:-50, :]
 
-            display_first_option(cv2.cvtColor(first_stitched, cv2.COLOR_BGR2RGB))
-            display_second_option(cv2.cvtColor(second_stitched, cv2.COLOR_BGR2RGB))
+        display_first_option(cv2.cvtColor(first_stitched, cv2.COLOR_BGR2RGB))
+        display_second_option(cv2.cvtColor(second_stitched, cv2.COLOR_BGR2RGB))
 
-            btn1 = tk.Button(
-                button_frame,
-                text=f"Select Image {i}-1",
-                command=lambda: update_result(cv2.cvtColor(first_stitched, cv2.COLOR_BGR2RGB)),
-            )
-            btn2 = tk.Button(
-                button_frame,
-                text=f"Select Image {i}-2",
-                command=lambda: update_result(cv2.cvtColor(second_stitched, cv2.COLOR_BGR2RGB)),
-            )
-            btn1.pack(side=tk.LEFT, padx=10)
-            btn2.pack(side=tk.LEFT, padx=10)
+        btn1 = tk.Button(
+            button_frame,
+            text=f"Select Image 1",
+            command=lambda: update_result(cv2.cvtColor(first_stitched, cv2.COLOR_BGR2RGB)),
+        )
+        btn2 = tk.Button(
+            button_frame,
+            text=f"Select Image 2",
+            command=lambda: update_result(cv2.cvtColor(second_stitched, cv2.COLOR_BGR2RGB)),
+        )
+        btn1.pack(side=tk.LEFT, padx=10)
+        btn2.pack(side=tk.LEFT, padx=10)
 
-            save_btn = tk.Button(
-                btn_frame,
-                text="Save image",
-                command=lambda: handle_save(
-                    result_img, save_btn
-                ),
-            )
+        save_btn = tk.Button(
+            btn_frame,
+            text="Save image",
+            command=lambda: handle_save(
+                result_img, save_btn
+            ),
+        )
 
-            save_btn.pack()
+        save_btn.pack()
     else:
         images = []
 
@@ -344,7 +342,7 @@ def reset():
 
 # Initialize Tkinter root
 root = tk.Tk()
-root.title("Image Stitching with SIFT")
+root.title("Image Stitching")
 root.geometry("1400x800")
 
 # Selected images
