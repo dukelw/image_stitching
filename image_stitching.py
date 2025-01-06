@@ -125,7 +125,7 @@ def stitch_images():
 
         # Create larger canvas to handle both vertical and horizontal stitching
         stitched_width = max(w1, w2) * 2  # Double the max width
-        stitched_height = max(h1, h2)
+        stitched_height = max(h1, h2) * 2
 
         # Warp both images to the canvas
         stitched_images = [
@@ -284,11 +284,11 @@ def post_process(stitched_img):
     )
     contours = imutils.grab_contours(contours)
 
-    area_oi = max(contours, key=cv2.contourArea)
+    area = max(contours, key=cv2.contourArea)
 
     mask = np.zeros(thresh_img.shape, dtype="uint8")
 
-    x, y, w, h = cv2.boundingRect(area_oi)
+    x, y, w, h = cv2.boundingRect(area)
     cv2.rectangle(mask, (x, y), (x + w, y + h), 255, -1)
 
     min_rectangle = mask.copy()
