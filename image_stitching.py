@@ -28,6 +28,7 @@ def display_first_option(stitched_image):
     # Update result_label to display the final stitched image
     result_rgb = Image.fromarray(cv2.cvtColor(stitched_image, cv2.COLOR_BGR2RGB))
     result_rgb.thumbnail((400, 200))
+    
     display_img = ImageTk.PhotoImage(result_rgb)
 
     # Update the label with the image
@@ -149,18 +150,18 @@ def stitch_images():
             first_stitched = stitched_images[0][100:-50, :]
             second_stitched = stitched_images[1][100:-50, :]
 
-            display_first_option(first_stitched)
-            display_second_option(second_stitched)
+            display_first_option(cv2.cvtColor(first_stitched, cv2.COLOR_BGR2RGB))
+            display_second_option(cv2.cvtColor(second_stitched, cv2.COLOR_BGR2RGB))
 
             btn1 = tk.Button(
                 button_frame,
                 text=f"Select Image {i}-1",
-                command=lambda: update_result(first_stitched),
+                command=lambda: update_result(cv2.cvtColor(first_stitched, cv2.COLOR_BGR2RGB)),
             )
             btn2 = tk.Button(
                 button_frame,
                 text=f"Select Image {i}-2",
-                command=lambda: update_result(second_stitched),
+                command=lambda: update_result(cv2.cvtColor(second_stitched, cv2.COLOR_BGR2RGB)),
             )
             btn1.pack(side=tk.LEFT, padx=10)
             btn2.pack(side=tk.LEFT, padx=10)
@@ -169,7 +170,7 @@ def stitch_images():
                 btn_frame,
                 text="Save image",
                 command=lambda: handle_save(
-                    cv2.cvtColor(result_img, cv2.COLOR_BGR2RGB), save_btn
+                    result_img, save_btn
                 ),
             )
 

@@ -6,57 +6,8 @@ import numpy as np
 import imutils
 
 video_frames = []
-
-
-# Function to select a video and extract frames
-def select_video():
-    video_path = filedialog.askopenfilename(
-        title="Select Video", filetypes=[("Video Files", "*.mp4;*.avi;*.mov")]
-    )
-    if not video_path:
-        return
-
-    # Extract frames from the video
-    frames = extract_frames(video_path)
-    if not frames:
-        messagebox.showerror("Error", "Failed to extract frames from the video.")
-        return
-
-    global video_frames
-    video_frames = frames
-
-    # Display the frames
-    display_frames()
-
-
-def extract_frames(video_path):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        return []
-
-    frame_rate = int(cap.get(cv2.CAP_PROP_FPS))
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames // frame_rate
-
-    frames = []
-    for second in range(0, duration, 3):  # Extract frames every 3 seconds
-        cap.set(cv2.CAP_PROP_POS_MSEC, second * 1000)  # Set to each 3rd second
-        success, frame = cap.read()
-        if success:
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert to RGB
-
-            # Crop 200px from the left and right
-            height, width = frame_rgb.shape[:2]
-            cropped_frame = frame_rgb[
-                :, 200 : width - 200
-            ]  # Keep the center part of the frame
-
-            frames.append(cropped_frame)
-
-    cap.release()
-    print(f"Total frames: {len(frames)}")
-    return frames
-
+video_path = ""
+video_duration = 0
 
 def handle_save(image, btn):
     file_name = simpledialog.askstring(
@@ -75,39 +26,109 @@ def handle_save(image, btn):
             "No Name", "No file name entered. Save operation cancelled."
         )
 
+# Function to select a video and extract details
+def select_video():
+    global video_path, video_duration
+
+    video_path = filedialog.askopenfilename(
+        title="Select Video", filetypes=[("Video Files", "*.mp4;*.avi;*.mov")]
+    )
+    if not video_path:
+        return
+
+    # Capture video to get details
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        messagebox.showerror("Error", "Failed to open the video file.")
+        return
+
+    # Get video duration
+    frame_rate = int(cap.get(cv2.CAP_PROP_FPS))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_duration = total_frames // frame_rate
+
+    cap.release()
+
+    # Update video duration and preview
+    video_duration_label.config(text=f"Video Duration: {video_duration} seconds")
+    display_video_preview(video_path)
+
+# Function to display video preview
+def display_video_preview(path):
+    cap = cv2.VideoCapture(path)
+    success, frame = cap.read()
+    cap.release()
+
+    if success:
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(frame_rgb)
+        image = image.resize((400, 300))
+        img_tk = ImageTk.PhotoImage(image)
+
+        preview_label.config(width=200, height=100)
+        preview_label.config(image=img_tk)
+        preview_label.image = img_tk
+    else:
+        messagebox.showerror("Error", "Failed to load video preview.")
+
+# Function to extract frames based on user input
+def extract_frames():
+    global video_frames
+
+    if not video_path:
+        messagebox.showerror("Error", "No video selected.")
+        return
+
+    try:
+        interval = int(interval_input.get())
+        if interval <= 0:
+            raise ValueError
+    except ValueError:
+        messagebox.showerror("Error", "Please enter a valid interval (positive integer).")
+        return
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        messagebox.showerror("Error", "Failed to open the video file.")
+        return
+
+    video_frames = []
+    for second in range(0, video_duration, interval):
+        cap.set(cv2.CAP_PROP_POS_MSEC, second * 1000)
+        success, frame = cap.read()
+        if success:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            height, width = frame_rgb.shape[:2]
+            cropped_frame = frame_rgb[:, 200:width - 200]
+            video_frames.append(cropped_frame)
+
+    cap.release()
+
+    if video_frames:
+        display_frames()
+    else:
+        messagebox.showerror("Error", "No frames extracted.")
 
 # Function to display the extracted frames
 def display_frames():
-    if not video_frames:
-        messagebox.showerror("Error", "No frames to display.")
-        return
-
-    # Clear the frame display area
     for widget in frame_display_area.winfo_children():
         widget.destroy()
 
     for i, frame in enumerate(video_frames):
-        # Convert frame to ImageTk format
         image = Image.fromarray(frame)
-        image.thumbnail((200, 150))  # Resize for display
+        image.thumbnail((200, 150))
         img_tk = ImageTk.PhotoImage(image)
 
-        # Create a label to display the image
         img_label = tk.Label(frame_display_area, image=img_tk)
-        img_label.image = img_tk  # Keep reference to avoid garbage collection
-        img_label.grid(row=i // 4, column=i % 4, padx=5, pady=5)
+        img_label.image = img_tk
+        img_label.grid(row=i // 5, column=i % 5, padx=5, pady=5)
 
-
+# Stitching logic remains the same
+# Function to stitch frames
 def stitch_video():
-    images = []
-
-    for image in video_frames:
-        images.append(image)
-
     image_stitcher = cv2.Stitcher_create()
-    print(len(images))
-    error, stitched_img = image_stitcher.stitch(images)
-    cv2.imwrite("hello.png", stitched_img)
+    error, stitched_img = image_stitcher.stitch(video_frames)
+    cv2.imwrite("original.png", stitched_img)
 
     if error == cv2.Stitcher_OK:
         stitched_img = cv2.copyMakeBorder(
@@ -172,41 +193,66 @@ def stitch_video():
     else:
         print("Error in stitching frame:", error)
 
-
+# Reset the UI
 def reset():
-    global video_frames
+    global video_frames, video_path, video_duration
     video_frames = []
+    video_path = ""
+    video_duration = 0
 
     for widget in frame_display_area.winfo_children():
         widget.destroy()
 
+    preview_label.config(image=None)
+    preview_label.image = None
+    video_duration_label.config(text="Video Duration: N/A")
     result_label.config(image=None)
     result_label.image = None
-    result_label.config(text="Result image here...")
-
 
 # Initialize Tkinter root
 root = tk.Tk()
-root.title("Image Stitching with SIFT")
-root.geometry("1400x800")
+root.title("Video Frame Extractor and Stitcher")
+root.geometry("1200x800")
 
-# Create UI components
+# Video preview and details
+details_frame = tk.Frame(root)
+details_frame.pack(pady=10)
+
+preview_label = tk.Label(details_frame, text="Video Preview", width=20, height=10, relief=tk.SUNKEN, bd=2)
+preview_label.pack(side=tk.LEFT, padx=10)
+
+video_duration_label = tk.Label(details_frame, text="Video Duration: N/A")
+video_duration_label.pack(side=tk.LEFT, padx=10)
+
+# Interval input
+tk.Label(details_frame, text="Frame Extraction Interval (seconds):").pack(side=tk.LEFT, padx=10)
+interval_input = tk.Entry(details_frame, width=5)
+interval_input.pack(side=tk.LEFT, padx=10)
+interval_input.insert(0, "3")
+
+# Buttons
 btn_frame = tk.Frame(root)
 btn_frame.pack(pady=10)
 
-tk.Button(btn_frame, text="Select Video", command=select_video).pack(
-    side=tk.LEFT, padx=10
-)
+select_btn = tk.Button(btn_frame, text="Select Video", command=select_video)
+select_btn.pack(side=tk.LEFT, padx=5)
 
-tk.Button(btn_frame, text="Stitch Video", command=stitch_video).pack(
-    side=tk.LEFT, padx=10
-)
-tk.Button(btn_frame, text="Clear", command=reset).pack(side=tk.LEFT, padx=10)
+extract_btn = tk.Button(btn_frame, text="Extract Frames", command=extract_frames)
+extract_btn.pack(side=tk.LEFT, padx=5)
 
+stitch_btn = tk.Button(btn_frame, text="Stitch Video", command=stitch_video)
+stitch_btn.pack(side=tk.LEFT, padx=5)
 
-# Create a scrollable frame to display frames
-canvas = tk.Canvas(root)
-scrollbar = tk.Scrollbar(root, orient=tk.VERTICAL, command=canvas.yview)
+clear_btn = tk.Button(btn_frame, text="Clear", command=reset)
+clear_btn.pack(side=tk.LEFT, padx=5)
+
+save_frame = tk.Frame()
+
+canvas_frame = tk.Frame(root)
+canvas_frame.pack(fill=tk.BOTH, expand=True)
+
+canvas = tk.Canvas(canvas_frame)
+scrollbar = tk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=canvas.yview)
 frame_display_area = tk.Frame(canvas)
 
 frame_display_area.bind(
@@ -219,16 +265,10 @@ canvas.configure(yscrollcommand=scrollbar.set)
 canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-# Result label for the stitched image
-result_label = tk.Label(
-    root,
-    text="Stitched result will appear here.",
-    width=800,
-    height=400,
-    relief=tk.SUNKEN,
-    bd=2,
-)
-result_label.pack(side=tk.BOTTOM, padx=10, pady=10, fill=tk.X)
+result_frame = tk.Frame(root, bd=2, relief=tk.SUNKEN)
+result_frame.pack(pady=10, fill=tk.X)
 
-save_frame = tk.Frame()
+result_label = tk.Label(result_frame, text="Stitched result will appear here.", bd=2, width=400, height=200)
+result_label.pack(pady=10)
+
 root.mainloop()
